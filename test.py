@@ -4,6 +4,10 @@ import openpyxl
 import random
 from transliterate import translit
 import datetime
+import requests
+
+# Telegram Bot
+bot = telebot.TeleBot('5312004578:AAFfG4l8EQLf4TXj7vn9OZo56CGGG4EFKK8')
 
 
 stickers_id = []
@@ -80,13 +84,9 @@ def create_menu(excel_day_cells):
                             break
                 temp = price, i, excel_days_cells[j][2]
                 days_with_menu[count].setdefault(name, temp)
+    bot.send_message(198384562, 'Меню создано')
     print('Меню создано')
 create_menu(excel_days_cells)
-
-
-
-# Telegram Bot
-bot = telebot.TeleBot('5200793738:AAGsgT7R28uVgAjD3i4DAbfd_PYSksgeYfQ')
 
 
 # Команда start
@@ -128,12 +128,23 @@ def admin_console(message):
 # Изменить меню на неделю
 @bot.message_handler(func=lambda msg: msg.text == 'Изменить меню на неделю')
 def change_menu(message):
-    bot.send_message(message.chat.id, 'Пришли excel файл с меню. Файл должен называться "Меню"')
+    bot.send_message(message.chat.id, 'Пришли excel файл с меню. Файл должен называться "Меню" и иметь только один лист')
 
 
+# Новое меню
 @bot.message_handler(func=lambda msg: msg.document.file_name == 'Меню.xlsx', content_types=['document'])
 def get_document(message):
-    print(message.document.file_name)
+    file_id = message.document.file_id
+    file_info = bot.get_file(file_id)
+    file = requests.get('https://api.telegram.org/file/bot{0}/{1}'.format('5312004578:AAFfG4l8EQLf4TXj7vn9OZo56CGGG4EFKK8', file_info.file_path))
+    with open('Меню.xlsx', 'wb') as f:
+        f.write(file.content)
+    with open('Заказы.txt', 'w') as f:
+        f.write('test|test|test|130|test')
+    with open('Логи.txt', 'w') as f:
+        time = datetime.datetime.now()
+        f.write(f'{str(time)[:19]} Загружено новое меню. Пользователь: {message.from_user.username}')
+    bot.send_message(message.chat.id, 'Меню успешно изменено. Все прошлые заказы и логи были удалены')
 
 
 # Все заказы
@@ -148,8 +159,11 @@ def admin_orders(message):
                 names_list.append(temp[1])
         names_menu = types.InlineKeyboardMarkup()
         for i in names_list:
-            name_button = types.InlineKeyboardButton(text=i, callback_data=f'name_order: {i}')
-            names_menu.add(name_button)
+            if i == 'test':
+                pass
+            else:
+                name_button = types.InlineKeyboardButton(text=i, callback_data=f'name_order: {i}')
+                names_menu.add(name_button)
         bot.send_message(message.chat.id, 'Выбери чьё меню посмотреть', reply_markup=names_menu)
 
 
@@ -192,7 +206,6 @@ def logs_file(message):
 # Чеки
 @bot.message_handler(func=lambda msg: msg.text == 'Чеки')
 def admin_bills(message):
-    for i in bill_list:
         bot.send_message(message.chat.id, 'В разработке')
 
 
@@ -224,6 +237,7 @@ def menu_excel(message):
 # Inline-клавиатура с выбором еды
 @bot.callback_query_handler(func=lambda msg: msg.data != 'Назад' and msg.data[:3] != 'del' and msg.data[:11] != 'name_order:')
 def callback_all(callback):
+
 
     # Реакции на выбор блюда
     if callback.data not in ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница']:
@@ -477,5 +491,7 @@ def command_id(message):
                                       f'ID: {message.from_user.id}')
 
 
-print('Бот готов к работе')
+
+bot.send_message(198384562, 'Бот готов к работе')
 bot.polling()
+
